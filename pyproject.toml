@@ -1,0 +1,35 @@
+[project]
+name = "openmetadata-ducklake-connector"
+version = "0.1.0"
+description = "Custom OpenMetadata source connector for the ORI DuckLake catalog"
+readme = "README.md"
+license = { text = "EUPL-1.2" }
+requires-python = ">=3.10"
+dependencies = [
+    # DuckDB 1.5.x is required for the `ducklake` extension (DuckLake spec
+    # v1.0, released April 2026) used by source.py's ATTACH call.
+    "duckdb>=1.5.0",
+    "pydantic>=2.0.0",
+]
+
+[project.optional-dependencies]
+# openmetadata-ingestion is heavy (pulls in the full ingestion framework and
+# its own pinned dependency tree) and only needed to actually run this
+# against a server, not to run the unit tests below. >=2.0.0 because
+# source.py's imports (metadata.ingestion.api.steps.Source, _iter(),
+# metadata.ingestion.api.models.Entity) were validated against 2.0.2.0 and
+# do not match the api.source.Source/next_record() shape of 1.x releases --
+# see the README "Known gaps" for what that means for older deployments.
+openmetadata = [
+    "openmetadata-ingestion>=2.0.0",
+]
+dev = [
+    "pytest>=8.0.0",
+]
+
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]

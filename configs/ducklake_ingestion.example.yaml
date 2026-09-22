@@ -1,0 +1,30 @@
+# Example ingestion config for a Custom Database Service pointed at
+# DuckLakeSource. Untested against a live OpenMetadata server -- see the
+# README "Known gaps" before using this for anything real.
+
+source:
+  type: CustomDatabase
+  serviceName: ori-ducklake
+  serviceConnection:
+    config:
+      type: CustomDatabase
+      sourcePythonClass: openmetadata_ducklake_connector.source.DuckLakeSource
+      connectionOptions:
+        ducklake_attach_uri: "ducklake:postgres:dbname=ori_catalog"
+        ducklake_data_path: "s3://ori-ducklake/data"
+        catalog_alias: "ori_lake"
+        s3_endpoint: "object.surfsara.nl"
+        s3_access_key_id: "${S3_ACCESS_KEY_ID}"
+        s3_secret_access_key: "${S3_SECRET_ACCESS_KEY}"
+  sourceConfig:
+    config:
+      type: DatabaseMetadata
+sink:
+  type: metadata-rest
+  config: {}
+workflowConfig:
+  openMetadataServerConfig:
+    hostPort: "http://localhost:8585/api"
+    authProvider: openmetadata
+    securityConfig:
+      jwtToken: "${OM_JWT_TOKEN}"
