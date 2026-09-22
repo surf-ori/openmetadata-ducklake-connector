@@ -23,6 +23,14 @@ dependencies = [
 openmetadata = [
     "openmetadata-ingestion>=2.0.0",
 ]
+# openlineage-dbt provides the `dbt-ol` CLI (a drop-in replacement for
+# `dbt`) used by the column-level lineage layer -- see openlineage_config.py
+# and the README "OpenLineage lineage layer" section. 1.53.0 is the latest
+# on PyPI as of 2026-09-22, same release train as openlineage-python.
+openlineage = [
+    "openlineage-dbt>=1.53.0",
+    "pyyaml>=6.0",
+]
 dev = [
     "pytest>=8.0.0",
 ]

@@ -79,9 +79,10 @@ Everything below was actually run and checked in this session, against
   the ORI DuckLake uses — see the blog's note on unnesting) currently fall
   back to `DataType.UNKNOWN` instead of `Column.children`. See
   `type_mapping.py`.
-- **No lineage or table-level description yet.** Only column-level
-  descriptions from contract-derived comments are wired in; dbt-model
-  lineage edges and table docstrings are not.
+- **Table-level descriptions still missing.** Only column-level
+  descriptions from contract-derived comments are wired in; table
+  docstrings are not. (Column-level *lineage* now has a starting point —
+  see "OpenLineage lineage layer" below — but it hasn't been run either.)
 - **Version-sensitive.** This targets OpenMetadata's current
   `metadata.ingestion.api.steps.Source` / `_iter()` interface. Older
   releases used `metadata.ingestion.api.source.Source` with
@@ -109,6 +110,51 @@ See [`configs/ducklake_ingestion.example.yaml`](configs/ducklake_ingestion.examp
 for a full ingestion config. Register it in OpenMetadata as a
 `Database Services → Add New Service → Custom` service, with
 `sourcePythonClass: openmetadata_ducklake_connector.source.DuckLakeSource`.
+
+## OpenLineage lineage layer (sketch)
+
+`DuckLakeSource` catalogs the lake's tables and columns; it does not know
+which model fed which. A separate, complementary piece —
+[`openlineage_config.py`](src/openmetadata_ducklake_connector/openlineage_config.py)
+— sketches the other half: getting column-level lineage from `dbt-ol`
+(OpenLineage's drop-in replacement for the `dbt` command, which does
+support the `duckdb` adapter) into OpenMetadata.
+
+**The finding that shapes this:** OpenMetadata's OpenLineage pipeline
+service is read-only for table resolution (tables/schemas/databases must
+already exist — hence needing `DuckLakeSource` or the dbt-manifest workflow
+first), *and* it currently consumes events from a message broker — Kafka,
+Kinesis, or NATS JetStream — not a plain HTTP POST the way Marquez accepts
+them. See the
+[OpenLineage connector docs](https://docs.open-metadata.org/v1.12.x/connectors/pipeline/openlineage)
+and the
+[NATS JetStream feature request](https://github.com/open-metadata/OpenMetadata/issues/33664)
+that confirms Kafka/Kinesis are the two existing options. That's a real
+infrastructure decision for a stack whose whole pitch is "no database
+servers to babysit": adding lineage this way means running (or paying for)
+a Kafka topic, not just pointing an env var at a URL.
+
+What's here: `OpenLineageKafkaConfig` and `write_openlineage_yaml()`
+generate the `openlineage.yml` that `dbt-ol` reads, pointed at that Kafka
+topic — tested (`pytest tests/test_openlineage_config.py`) only in the sense
+that the YAML it produces round-trips through `yaml.safe_load` with the
+right shape. Not included, and not sketched yet:
+
+- OpenMetadata's own ingestion-workflow config for the *consuming* side
+  (its `brokerConfig`) — this only covers the producer side.
+- Actually running `dbt-ol build` against a Kafka broker and confirming
+  lineage events arrive and attach to tables `DuckLakeSource` already
+  registered.
+- Whether the built-in OpenLineage SQL parser handles DuckDB-specific
+  syntax (struct/list unnesting) well enough, or whether the sqlglot-based
+  approach in
+  [oluies/duckdb-openmetadata-lineage](https://github.com/oluies/duckdb-openmetadata-lineage)
+  is needed instead.
+
+Given the Kafka requirement, it's worth deciding whether column-level
+lineage is actually needed before standing this up — the dbt-manifest
+workflow already gives model-level lineage for free, with nothing extra to
+run.
 
 ## License
 
